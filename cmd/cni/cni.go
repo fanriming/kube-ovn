@@ -146,7 +146,7 @@ func loadNetConf(bytes []byte) (*netConf, string, error) {
 		return nil, "", fmt.Errorf("failed to load netconf: %v", err)
 	}
 
-	if n.IPAM != nil {
+	if n.Type != util.CniTypeName && n.IPAM != nil {
 		n.Provider = n.IPAM.Provider
 		n.ServerSocket = n.IPAM.ServerSocket
 	}
