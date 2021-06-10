@@ -54,4 +54,5 @@ jobs:
           TAG=$(cat VERSION)
           echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
           docker images
+          docker tag kubeovn/kube-ovn-base:$TAG-amd64 $DOCKER_USERNAME/kube-ovn-base:$TAG-offload-amd64
           docker push $DOCKER_USERNAME/kube-ovn-base:$TAG-offload-amd64
