@@ -1,5 +1,6 @@
 # syntax = docker/dockerfile:experimental
-FROM kubeovn/kube-ovn-base:v1.7.0
+# FROM kubeovn/kube-ovn-base:v1.7.0
+FROM etcdnecx/kube-ovn-base:v1.7.0-offload-amd64
 
 COPY *.sh /kube-ovn/
 COPY 01-kube-ovn.conflist /kube-ovn/01-kube-ovn.conflist
