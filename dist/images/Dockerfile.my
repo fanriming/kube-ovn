@@ -1,0 +1,5 @@
+# syntax = docker/dockerfile:experimental
+FROM etcdnecx/kube-ovn:dev-1.5.x
+
+COPY kube-ovn /kube-ovn/kube-ovn
+COPY kube-ovn-daemon /kube-ovn/kube-ovn-daemon
