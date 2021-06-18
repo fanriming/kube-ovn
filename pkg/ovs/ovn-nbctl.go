@@ -306,6 +306,7 @@ func (c Client) DeleteLoadBalancer(lbs ...string) error {
 	for _, lb := range lbs {
 		lbid, err := c.FindLoadbalancer(lb)
 		if err != nil {
+			klog.Warningf("failed to find load_balancer '%s', %v", lb, err)
 			continue
 		}
 		if _, err := c.ovnNbCommand(IfExists, "destroy", "load_balancer", lbid); err != nil {

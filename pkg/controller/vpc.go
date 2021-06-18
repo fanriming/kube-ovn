@@ -264,17 +264,6 @@ func (c *Controller) handleAddOrUpdateVpc(key string) error {
 		return err
 	}
 
-	if c.config.EnableLb {
-		vpcLb, err := c.addLoadBalancer(key)
-		if err != nil {
-			return err
-		}
-		vpc.Status.TcpLoadBalancer = vpcLb.TcpLoadBalancer
-		vpc.Status.TcpSessionLoadBalancer = vpcLb.TcpSessLoadBalancer
-		vpc.Status.UdpLoadBalancer = vpcLb.UdpLoadBalancer
-		vpc.Status.UdpSessionLoadBalancer = vpcLb.UdpSessLoadBalancer
-	}
-
 	if vpc.Name != util.DefaultVpc {
 		// handle route
 		existRoute, err := c.ovnClient.GetStaticRouteList(vpc.Name)
@@ -303,6 +292,16 @@ func (c *Controller) handleAddOrUpdateVpc(key string) error {
 		}
 	}
 
+	if c.config.EnableLb {
+		vpcLb, err := c.addLoadBalancer(key)
+		if err != nil {
+			return err
+		}
+		vpc.Status.TcpLoadBalancer = vpcLb.TcpLoadBalancer
+		vpc.Status.TcpSessionLoadBalancer = vpcLb.TcpSessLoadBalancer
+		vpc.Status.UdpLoadBalancer = vpcLb.UdpLoadBalancer
+		vpc.Status.UdpSessionLoadBalancer = vpcLb.UdpSessLoadBalancer
+	}
 	vpc.Status.Router = key
 	vpc.Status.Standby = true
 	bytes, err := vpc.Status.Bytes()
