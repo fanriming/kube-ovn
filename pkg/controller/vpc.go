@@ -264,9 +264,15 @@ func (c *Controller) handleAddOrUpdateVpc(key string) error {
 		return err
 	}
 
-	vpcLb, err := c.addLoadBalancer(key)
-	if err != nil {
-		return err
+	if c.config.EnableLb {
+		vpcLb, err := c.addLoadBalancer(key)
+		if err != nil {
+			return err
+		}
+		vpc.Status.TcpLoadBalancer = vpcLb.TcpLoadBalancer
+		vpc.Status.TcpSessionLoadBalancer = vpcLb.TcpSessLoadBalancer
+		vpc.Status.UdpLoadBalancer = vpcLb.UdpLoadBalancer
+		vpc.Status.UdpSessionLoadBalancer = vpcLb.UdpSessLoadBalancer
 	}
 
 	if vpc.Name != util.DefaultVpc {
@@ -299,10 +305,6 @@ func (c *Controller) handleAddOrUpdateVpc(key string) error {
 
 	vpc.Status.Router = key
 	vpc.Status.Standby = true
-	vpc.Status.TcpLoadBalancer = vpcLb.TcpLoadBalancer
-	vpc.Status.TcpSessionLoadBalancer = vpcLb.TcpSessLoadBalancer
-	vpc.Status.UdpLoadBalancer = vpcLb.UdpLoadBalancer
-	vpc.Status.UdpSessionLoadBalancer = vpcLb.UdpSessLoadBalancer
 	bytes, err := vpc.Status.Bytes()
 	if err != nil {
 		return err

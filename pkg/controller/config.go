@@ -94,7 +94,7 @@ func ParseFlags() (*Configuration, error) {
 		argsDefaultVlanID        = pflag.Int("default-vlan-id", 1, "The default vlan id, default: 1")
 		argsDefaultVlanRange     = pflag.String("default-vlan-range", "1,4095", "The default vlan range, default: 1-4095")
 		argsPodNicType           = pflag.String("pod-nic-type", "veth-pair", "The default pod network nic implementation type, default: veth-pair")
-		argsEnableLb             = pflag.Bool("enablel-lb", true, "Enable traffic mirror, default: false")
+		argsEnableLb             = pflag.Bool("enable-lb", true, "Enable load balancer, default: true")
 	)
 
 	klogFlags := flag.NewFlagSet("klog", flag.ExitOnError)

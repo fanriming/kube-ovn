@@ -60,10 +60,12 @@ func (c *Controller) InitDefaultVpc() error {
 
 	vpc.Status.DefaultLogicalSwitch = c.config.DefaultLogicalSwitch
 	vpc.Status.Router = c.config.ClusterRouter
-	vpc.Status.TcpLoadBalancer = c.config.ClusterTcpLoadBalancer
-	vpc.Status.TcpSessionLoadBalancer = c.config.ClusterTcpSessionLoadBalancer
-	vpc.Status.UdpLoadBalancer = c.config.ClusterUdpLoadBalancer
-	vpc.Status.UdpSessionLoadBalancer = c.config.ClusterUdpSessionLoadBalancer
+	if c.config.EnableLb {
+		vpc.Status.TcpLoadBalancer = c.config.ClusterTcpLoadBalancer
+		vpc.Status.TcpSessionLoadBalancer = c.config.ClusterTcpSessionLoadBalancer
+		vpc.Status.UdpLoadBalancer = c.config.ClusterUdpLoadBalancer
+		vpc.Status.UdpSessionLoadBalancer = c.config.ClusterUdpSessionLoadBalancer
+	}
 	vpc.Status.Standby = true
 	vpc.Status.Default = true
 
