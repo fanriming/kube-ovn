@@ -21,9 +21,11 @@ func (c *Controller) InitOVN() error {
 		return err
 	}
 
-	if err := c.initLoadBalancer(); err != nil {
-		klog.Errorf("init load balancer failed %v", err)
-		return err
+	if c.config.EnableLb {
+		if err := c.initLoadBalancer(); err != nil {
+			klog.Errorf("init load balancer failed %v", err)
+			return err
+		}
 	}
 
 	if err := c.initDefaultVlan(); err != nil {
