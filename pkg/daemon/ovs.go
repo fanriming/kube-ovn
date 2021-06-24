@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -31,7 +33,7 @@ func (csh cniServerHandler) configureNic(podName, podNamespace, provider, netns,
 			return err
 		}
 	} else {
-		hostNicName, containerNicName, err = setupSriovInterface(containerID, DeviceID, ifName, csh.Config.MTU)
+		hostNicName, containerNicName, err = setupSriovInterface(containerID, DeviceID, ifName, csh.Config.MTU, mac)
 		if err != nil {
 			klog.Errorf("failed to create sriov interfaces %v", err)
 			return err
@@ -64,6 +66,9 @@ func (csh cniServerHandler) configureNic(podName, podNamespace, provider, netns,
 		return err
 	}
 
+	if containerNicName == "" {
+		return nil
+	}
 	podNS, err := ns.GetNS(netns)
 	if err != nil {
 		return fmt.Errorf("failed to open netns %q: %v", netns, err)
@@ -625,19 +630,30 @@ func setupVethPair(containerID, ifName string, mtu int) (string, string, error) 
 
 // Setup sriov interface in the pod
 // https://github.com/ovn-org/ovn-kubernetes/commit/6c96467d0d3e58cab05641293d1c1b75e5914795
-func setupSriovInterface(containerID, deviceID, ifName string, mtu int) (string, string, error) {
-	// 1. get VF netdevice from PCI
-	vfNetdevices, err := sriovnet.GetNetDevicesFromPci(deviceID)
-	if err != nil {
-		klog.Errorf("failed to get vf netdevice %s, %v", deviceID, err)
-		return "", "", err
+func setupSriovInterface(containerID, deviceID, ifName string, mtu int, mac string) (string, string, error) {
+	var isVfio = false
+	_, err := os.Stat(filepath.Join(util.VfioSysDir, deviceID))
+	if err == nil {
+		isVfio = true
+	} else if !os.IsNotExist(err) {
+		return "", "", fmt.Errorf("failed to check vf driver, %v", err)
 	}
 
-	// Make sure we have 1 netdevice per pci address
-	if len(vfNetdevices) != 1 {
-		return "", "", fmt.Errorf("failed to get one netdevice interface per %s", deviceID)
+	var vfNetdevice string
+	if !isVfio {
+		// 1. get VF netdevice from PCI
+		vfNetdevices, err := sriovnet.GetNetDevicesFromPci(deviceID)
+		if err != nil {
+			klog.Errorf("failed to get vf netdevice %s, %v", deviceID, err)
+			return "", "", err
+		}
+
+		// Make sure we have 1 netdevice per pci address
+		if len(vfNetdevices) != 1 {
+			return "", "", fmt.Errorf("failed to get one netdevice interface per %s", deviceID)
+		}
+		vfNetdevice = vfNetdevices[0]
 	}
-	vfNetdevice := vfNetdevices[0]
 
 	// 2. get Uplink netdevice
 	uplink, err := sriovnet.GetUplinkRepresentor(deviceID)
@@ -677,6 +693,18 @@ func setupSriovInterface(containerID, deviceID, ifName string, mtu int) (string,
 		return "", "", fmt.Errorf("failed to set MTU on %s: %v", hostNicName, err)
 	}
 
+	// 7. set MAC address to VF
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse mac %s %v", macAddr, err)
+	}
+	nicLink, err := netlink.LinkByName(uplink)
+	if err != nil {
+		return "", "", fmt.Errorf("can not find nic %s %v", uplink, err)
+	}
+	if err := netlink.LinkSetVfHardwareAddr(nicLink, vfIndex, macAddr); err != nil {
+		return "", "", fmt.Errorf("can not set mac address to vf nic:%s vf:%d %v", uplink, vfIndex, err)
+	}
 	return hostNicName, vfNetdevice, nil
 }
 
