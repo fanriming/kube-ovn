@@ -195,7 +195,7 @@ func (c *Controller) reconcileRouters() error {
 	}
 	cidrs := make([]string, 0, len(subnets))
 	for _, subnet := range subnets {
-		if !subnet.Status.IsReady() || subnet.Spec.UnderlayGateway {
+		if subnet.Spec.Vpc != util.DefaultVpc || !subnet.Status.IsReady() || subnet.Spec.UnderlayGateway {
 			continue
 		}
 		if _, ipNet, err := net.ParseCIDR(subnet.Spec.CIDRBlock); err != nil {
