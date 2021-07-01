@@ -630,7 +630,7 @@ func setupVethPair(containerID, ifName string, mtu int) (string, string, error) 
 
 // Setup sriov interface in the pod
 // https://github.com/ovn-org/ovn-kubernetes/commit/6c96467d0d3e58cab05641293d1c1b75e5914795
-func setupSriovInterface(containerID, vfDriver, deviceID, ifName string, mtu int, mac string) (string, string, error) {
+func setupSriovInterface(containerID, deviceID, vfDriver, ifName string, mtu int, mac string) (string, string, error) {
 	var isVfioPciDriver = false
 	if vfDriver == "vfio-pci" {
 		matches, err := filepath.Glob(filepath.Join(util.VfioSysDir, "*"))
@@ -650,7 +650,7 @@ func setupSriovInterface(containerID, vfDriver, deviceID, ifName string, mtu int
 		}
 
 		if !isVfioPciDriver {
-			return "", "", fmt.Errorf("driver of device %s is not 'vfio-pci'")
+			return "", "", fmt.Errorf("driver of device %s is not 'vfio-pci'", deviceID)
 		}
 	}
 
