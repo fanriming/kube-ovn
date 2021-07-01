@@ -23,7 +23,7 @@ import (
 	"github.com/kubeovn/kube-ovn/pkg/util"
 )
 
-func (csh cniServerHandler) configureNic(podName, podNamespace, provider, netns, containerID, ifName, mac, ip, gateway, ingress, egress, vlanID, DeviceID, nicType, podNetns string) error {
+func (csh cniServerHandler) configureNic(podName, podNamespace, provider, netns, containerID, vfDriver, ifName, mac, ip, gateway, ingress, egress, vlanID, DeviceID, nicType, podNetns string) error {
 	var err error
 	var hostNicName, containerNicName string
 	if DeviceID == "" {
@@ -33,7 +33,7 @@ func (csh cniServerHandler) configureNic(podName, podNamespace, provider, netns,
 			return err
 		}
 	} else {
-		hostNicName, containerNicName, err = setupSriovInterface(containerID, DeviceID, ifName, csh.Config.MTU, mac)
+		hostNicName, containerNicName, err = setupSriovInterface(containerID, DeviceID, vfDriver, ifName, csh.Config.MTU, mac)
 		if err != nil {
 			klog.Errorf("failed to create sriov interfaces %v", err)
 			return err
@@ -630,17 +630,32 @@ func setupVethPair(containerID, ifName string, mtu int) (string, string, error) 
 
 // Setup sriov interface in the pod
 // https://github.com/ovn-org/ovn-kubernetes/commit/6c96467d0d3e58cab05641293d1c1b75e5914795
-func setupSriovInterface(containerID, deviceID, ifName string, mtu int, mac string) (string, string, error) {
-	var isVfio = false
-	_, err := os.Stat(filepath.Join(util.VfioSysDir, deviceID))
-	if err == nil {
-		isVfio = true
-	} else if !os.IsNotExist(err) {
-		return "", "", fmt.Errorf("failed to check vf driver, %v", err)
+func setupSriovInterface(containerID, vfDriver, deviceID, ifName string, mtu int, mac string) (string, string, error) {
+	var isVfioPciDriver = false
+	if vfDriver == "vfio-pci" {
+		matches, err := filepath.Glob(filepath.Join(util.VfioSysDir, "*"))
+		if err != nil {
+			return "", "", fmt.Errorf("failed to check %s 'vfio-pci' driver path, %v", deviceID, err)
+		}
+
+		for _, match := range matches {
+			tmp, err := os.Readlink(match)
+			if err != nil {
+				continue
+			}
+			if strings.Contains(tmp, deviceID) {
+				isVfioPciDriver = true
+				break
+			}
+		}
+
+		if !isVfioPciDriver {
+			return "", "", fmt.Errorf("driver of device %s is not 'vfio-pci'")
+		}
 	}
 
 	var vfNetdevice string
-	if !isVfio {
+	if !isVfioPciDriver {
 		// 1. get VF netdevice from PCI
 		vfNetdevices, err := sriovnet.GetNetDevicesFromPci(deviceID)
 		if err != nil {
