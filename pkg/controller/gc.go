@@ -203,7 +203,12 @@ func (c *Controller) markAndCleanLSP() error {
 		klog.Errorf("failed to list node, %v", err)
 		return err
 	}
-	ipNames := make([]string, 0, len(pods)+len(nodes))
+	staticPorts, err := c.staticPortLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("failed to list static port, %v", err)
+		return err
+	}
+	ipNames := make([]string, 0, len(pods)+len(nodes)+len(staticPorts))
 	for _, pod := range pods {
 		if !isPodAlive(pod) {
 			continue
@@ -218,6 +223,9 @@ func (c *Controller) markAndCleanLSP() error {
 	}
 	for _, node := range nodes {
 		ipNames = append(ipNames, fmt.Sprintf("node-%s", node.Name))
+	}
+	for _, port := range staticPorts {
+		ipNames = append(ipNames, fmt.Sprintf("static-port-%s", port.Name))
 	}
 	lsps, err := c.ovnClient.ListLogicalSwitchPort()
 	if err != nil {

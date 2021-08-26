@@ -84,7 +84,7 @@ func (c *Controller) processNextAddOrUpdateStaticPortWorkItem() bool {
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			return nil
 		}
-		if err := c.handleAddOrUpdateSg(key); err != nil {
+		if err := c.handleAddOrUpdateStaticPort(key); err != nil {
 			c.addOrUpdateStaticPortQueue.AddRateLimited(key)
 			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 		}
@@ -115,7 +115,7 @@ func (c *Controller) processNextDeleteStaticPortWorkItem() bool {
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			return nil
 		}
-		if err := c.handleDeleteSg(key); err != nil {
+		if err := c.handleDeleteStaticPort(key); err != nil {
 			c.delStaticPortQueue.AddRateLimited(key)
 			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 		}
@@ -150,16 +150,25 @@ func (c *Controller) handleAddOrUpdateStaticPort(key string) error {
 		return err
 	}
 
+	portName := fmt.Sprintf("static-port-%s", port.Name)
 	// create port
-	if err := c.ovnClient.CreatePort(port.Spec.Subnet, port.Name, ipStr, subnet.Spec.CIDRBlock, port.Spec.Mac, tag, "", "", true, ""); err != nil {
+	if err := c.ovnClient.CreatePort(port.Spec.Subnet, portName, ipStr, subnet.Spec.CIDRBlock, port.Spec.Mac, tag, "", "", true, ""); err != nil {
 		return err
 	}
 
 	// update ipam
-
-	return nil
+	_, _, _, err = c.ipam.GetStaticAddress(portName, port.Spec.V4IP, port.Spec.Mac, port.Spec.Subnet)
+	if err != nil {
+		klog.Errorf("failed to get static address for static-port '%s',%v", key, err)
+	}
+	return err
 }
 
 func (c *Controller) handleDeleteStaticPort(key string) error {
+	portName := fmt.Sprintf("static-port-%s", key)
+	if err := c.ovnClient.DeleteLogicalSwitchPort(portName); err != nil {
+		return err
+	}
+	c.ipam.ReleaseAddressByPod(portName)
 	return nil
 }

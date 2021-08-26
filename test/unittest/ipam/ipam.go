@@ -145,12 +145,12 @@ var _ = Describe("[IPAM]", func() {
 					&ipam.IPRange{Start: "10.16.0.24", End: "10.16.255.254"},
 				}))
 
-			Expect(subnet.V4IPToPod).To(HaveKeyWithValue(ipam.IP("10.16.0.2"), "pod1.ns"))
-			Expect(subnet.V4IPToPod).To(HaveKeyWithValue(ipam.IP("10.16.0.3"), "pod2.ns"))
-			Expect(subnet.V4IPToPod).To(HaveKeyWithValue(ipam.IP("10.16.0.20"), "pod3.ns"))
-			Expect(subnet.V4PodToIP).To(HaveKeyWithValue("pod1.ns", ipam.IP("10.16.0.2")))
-			Expect(subnet.V4PodToIP).To(HaveKeyWithValue("pod2.ns", ipam.IP("10.16.0.3")))
-			Expect(subnet.V4PodToIP).To(HaveKeyWithValue("pod3.ns", ipam.IP("10.16.0.20")))
+			Expect(subnet.V4IPToObj).To(HaveKeyWithValue(ipam.IP("10.16.0.2"), "pod1.ns"))
+			Expect(subnet.V4IPToObj).To(HaveKeyWithValue(ipam.IP("10.16.0.3"), "pod2.ns"))
+			Expect(subnet.V4IPToObj).To(HaveKeyWithValue(ipam.IP("10.16.0.20"), "pod3.ns"))
+			Expect(subnet.V4ObjToIP).To(HaveKeyWithValue("pod1.ns", ipam.IP("10.16.0.2")))
+			Expect(subnet.V4ObjToIP).To(HaveKeyWithValue("pod2.ns", ipam.IP("10.16.0.3")))
+			Expect(subnet.V4ObjToIP).To(HaveKeyWithValue("pod3.ns", ipam.IP("10.16.0.20")))
 
 			_, _, err = subnet.GetStaticAddress("pod4.ns", "10.16.0.3", "", false)
 			Expect(err).Should(MatchError(ipam.ConflictError))
@@ -166,8 +166,8 @@ var _ = Describe("[IPAM]", func() {
 					&ipam.IPRange{Start: "10.16.0.24", End: "10.16.255.254"},
 				}))
 
-			Expect(subnet.V4PodToIP).To(BeEmpty())
-			Expect(subnet.V4IPToPod).To(BeEmpty())
+			Expect(subnet.V4ObjToIP).To(BeEmpty())
+			Expect(subnet.V4IPToObj).To(BeEmpty())
 		})
 
 		It("random allocation", func() {
@@ -189,10 +189,10 @@ var _ = Describe("[IPAM]", func() {
 			Expect(err).Should(MatchError(ipam.NoAvailableError))
 			Expect(subnet.V4FreeIPList).To(BeEmpty())
 
-			Expect(subnet.V4IPToPod).To(HaveKeyWithValue(ipam.IP("10.16.0.1"), "pod1.ns"))
-			Expect(subnet.V4IPToPod).To(HaveKeyWithValue(ipam.IP("10.16.0.2"), "pod2.ns"))
-			Expect(subnet.V4PodToIP).To(HaveKeyWithValue("pod1.ns", ipam.IP("10.16.0.1")))
-			Expect(subnet.V4PodToIP).To(HaveKeyWithValue("pod2.ns", ipam.IP("10.16.0.2")))
+			Expect(subnet.V4IPToObj).To(HaveKeyWithValue(ipam.IP("10.16.0.1"), "pod1.ns"))
+			Expect(subnet.V4IPToObj).To(HaveKeyWithValue(ipam.IP("10.16.0.2"), "pod2.ns"))
+			Expect(subnet.V4ObjToIP).To(HaveKeyWithValue("pod1.ns", ipam.IP("10.16.0.1")))
+			Expect(subnet.V4ObjToIP).To(HaveKeyWithValue("pod2.ns", ipam.IP("10.16.0.2")))
 
 			subnet.ReleaseAddress("pod1.ns")
 			subnet.ReleaseAddress("pod2.ns")
@@ -202,8 +202,8 @@ var _ = Describe("[IPAM]", func() {
 				ipam.IPRangeList{
 					&ipam.IPRange{Start: "10.16.0.1", End: "10.16.0.2"},
 				}))
-			Expect(subnet.V4IPToPod).To(BeEmpty())
-			Expect(subnet.V4PodToIP).To(BeEmpty())
+			Expect(subnet.V4IPToObj).To(BeEmpty())
+			Expect(subnet.V4ObjToIP).To(BeEmpty())
 		})
 	})
 })

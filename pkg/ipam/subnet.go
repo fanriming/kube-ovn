@@ -18,22 +18,16 @@ type Subnet struct {
 	V4FreeIPList     IPRangeList
 	V4ReleasedIPList IPRangeList
 	V4ReservedIPList IPRangeList
-	V4PodToIP        map[string]IP
-	V4IPToPod        map[IP]string
-	V4StaticPortToIP map[string]IP
-	V4IPToStaticPort map[IP]string
+	V4ObjToIP        map[string]IP
+	V4IPToObj        map[IP]string
 	V6CIDR           *net.IPNet
 	V6FreeIPList     IPRangeList
 	V6ReleasedIPList IPRangeList
 	V6ReservedIPList IPRangeList
-	V6PodToIP        map[string]IP
-	V6IPToPod        map[IP]string
-	V6StaticPortToIP map[string]IP
-	V6IPToStaticPort map[IP]string
-	PodToMac         map[string]string
-	MacToPod         map[string]string
-	StaticPortToMac  map[string]string
-	MacToStaticPort  map[string]string
+	V6ObjToIP        map[string]IP
+	V6IPToObj        map[IP]string
+	ObjToMac         map[string]string
+	MacToObj         map[string]string
 }
 
 func NewSubnet(name, cidrStr string, excludeIps []string) (*Subnet, error) {
@@ -63,12 +57,12 @@ func NewSubnet(name, cidrStr string, excludeIps []string) (*Subnet, error) {
 			V4FreeIPList:     IPRangeList{&IPRange{Start: IP(firstIP), End: IP(lastIP)}},
 			V4ReleasedIPList: IPRangeList{},
 			V4ReservedIPList: convertExcludeIps(v4ExcludeIps),
-			V4PodToIP:        map[string]IP{},
-			V4IPToPod:        map[IP]string{},
-			V6PodToIP:        map[string]IP{},
-			V6IPToPod:        map[IP]string{},
-			MacToPod:         map[string]string{},
-			PodToMac:         map[string]string{},
+			V4ObjToIP:        map[string]IP{},
+			V4IPToObj:        map[IP]string{},
+			V6ObjToIP:        map[string]IP{},
+			V6IPToObj:        map[IP]string{},
+			MacToObj:         map[string]string{},
+			ObjToMac:         map[string]string{},
 		}
 		subnet.joinFreeWithReserve()
 	} else if protocol == kubeovnv1.ProtocolIPv6 {
@@ -83,12 +77,12 @@ func NewSubnet(name, cidrStr string, excludeIps []string) (*Subnet, error) {
 			V6FreeIPList:     IPRangeList{&IPRange{Start: IP(firstIP), End: IP(lastIP)}},
 			V6ReleasedIPList: IPRangeList{},
 			V6ReservedIPList: convertExcludeIps(v6ExcludeIps),
-			V4PodToIP:        map[string]IP{},
-			V4IPToPod:        map[IP]string{},
-			V6PodToIP:        map[string]IP{},
-			V6IPToPod:        map[IP]string{},
-			MacToPod:         map[string]string{},
-			PodToMac:         map[string]string{},
+			V4ObjToIP:        map[string]IP{},
+			V4IPToObj:        map[IP]string{},
+			V6ObjToIP:        map[string]IP{},
+			V6IPToObj:        map[IP]string{},
+			MacToObj:         map[string]string{},
+			ObjToMac:         map[string]string{},
 		}
 		subnet.joinFreeWithReserve()
 	} else {
@@ -106,16 +100,16 @@ func NewSubnet(name, cidrStr string, excludeIps []string) (*Subnet, error) {
 			V4FreeIPList:     IPRangeList{&IPRange{Start: IP(v4FirstIP), End: IP(v4LastIP)}},
 			V4ReleasedIPList: IPRangeList{},
 			V4ReservedIPList: convertExcludeIps(v4ExcludeIps),
-			V4PodToIP:        map[string]IP{},
-			V4IPToPod:        map[IP]string{},
+			V4ObjToIP:        map[string]IP{},
+			V4IPToObj:        map[IP]string{},
 			V6CIDR:           cidrs[1],
 			V6FreeIPList:     IPRangeList{&IPRange{Start: IP(v6FirstIP), End: IP(v6LastIP)}},
 			V6ReleasedIPList: IPRangeList{},
 			V6ReservedIPList: convertExcludeIps(v6ExcludeIps),
-			V6PodToIP:        map[string]IP{},
-			V6IPToPod:        map[IP]string{},
-			MacToPod:         map[string]string{},
-			PodToMac:         map[string]string{},
+			V6ObjToIP:        map[string]IP{},
+			V6IPToObj:        map[IP]string{},
+			MacToObj:         map[string]string{},
+			ObjToMac:         map[string]string{},
 		}
 		subnet.joinFreeWithReserve()
 	}
@@ -123,36 +117,36 @@ func NewSubnet(name, cidrStr string, excludeIps []string) (*Subnet, error) {
 }
 
 func (subnet *Subnet) GetRandomMac(podName string) string {
-	if mac, ok := subnet.PodToMac[podName]; ok {
+	if mac, ok := subnet.ObjToMac[podName]; ok {
 		return mac
 	}
 	for {
 		mac := util.GenerateMac()
-		if _, ok := subnet.MacToPod[mac]; !ok {
-			subnet.MacToPod[mac] = podName
-			subnet.PodToMac[podName] = mac
+		if _, ok := subnet.MacToObj[mac]; !ok {
+			subnet.MacToObj[mac] = podName
+			subnet.ObjToMac[podName] = mac
 			return mac
 		}
 	}
 }
 
 func (subnet *Subnet) GetStaticMac(podName, mac string) error {
-	if p, ok := subnet.MacToPod[mac]; ok && p != podName {
+	if p, ok := subnet.MacToObj[mac]; ok && p != podName {
 		return ConflictError
 	}
-	subnet.MacToPod[mac] = podName
-	subnet.PodToMac[podName] = mac
+	subnet.MacToObj[mac] = podName
+	subnet.ObjToMac[podName] = mac
 	return nil
 }
 
-func (subnet *Subnet) GetMacForStaticPort(staticPortName, mac string) error {
-	if p, ok := subnet.MacToStaticPort[mac]; ok && p != staticPortName {
-		return ConflictError
-	}
-	subnet.MacToStaticPort[mac] = staticPortName
-	subnet.StaticPortToMac[staticPortName] = mac
-	return nil
-}
+//func (subnet *Subnet) GetMacForStaticPort(staticPortName, mac string) error {
+//	if p, ok := subnet.MacToStaticPort[mac]; ok && p != staticPortName {
+//		return ConflictError
+//	}
+//	subnet.MacToStaticPort[mac] = staticPortName
+//	subnet.StaticPortToMac[staticPortName] = mac
+//	return nil
+//}
 
 func (subnet *Subnet) GetRandomAddress(podName string) (IP, IP, string, error) {
 	subnet.mutex.Lock()
@@ -171,14 +165,14 @@ func (subnet *Subnet) getDualRandomAddress(podName string) (IP, IP, string, erro
 	var ok bool
 	v4IPExist := false
 	v6IPExist := false
-	if v4IP, ok = subnet.V4PodToIP[podName]; ok {
+	if v4IP, ok = subnet.V4ObjToIP[podName]; ok {
 		v4IPExist = true
 	}
-	if v6IP, ok = subnet.V6PodToIP[podName]; ok {
+	if v6IP, ok = subnet.V6ObjToIP[podName]; ok {
 		v6IPExist = true
 	}
 	if v4IPExist && v6IPExist {
-		return v4IP, v6IP, subnet.PodToMac[podName], nil
+		return v4IP, v6IP, subnet.ObjToMac[podName], nil
 	}
 
 	if len(subnet.V4FreeIPList) == 0 {
@@ -207,8 +201,8 @@ func (subnet *Subnet) getDualRandomAddress(podName string) (IP, IP, string, erro
 	} else {
 		subnet.V4FreeIPList = subnet.V4FreeIPList[1:]
 	}
-	subnet.V4PodToIP[podName] = v4IP
-	subnet.V4IPToPod[v4IP] = podName
+	subnet.V4ObjToIP[podName] = v4IP
+	subnet.V4IPToObj[v4IP] = podName
 
 	freeList = subnet.V6FreeIPList
 	ipr = freeList[0]
@@ -219,15 +213,15 @@ func (subnet *Subnet) getDualRandomAddress(podName string) (IP, IP, string, erro
 	} else {
 		subnet.V6FreeIPList = subnet.V6FreeIPList[1:]
 	}
-	subnet.V6PodToIP[podName] = v6IP
-	subnet.V6IPToPod[v6IP] = podName
+	subnet.V6ObjToIP[podName] = v6IP
+	subnet.V6IPToObj[v6IP] = podName
 
 	return v4IP, v6IP, subnet.GetRandomMac(podName), nil
 }
 
 func (subnet *Subnet) getV4RandomAddress(podName string) (IP, IP, string, error) {
-	if ip, ok := subnet.V4PodToIP[podName]; ok {
-		return ip, "", subnet.PodToMac[podName], nil
+	if ip, ok := subnet.V4ObjToIP[podName]; ok {
+		return ip, "", subnet.ObjToMac[podName], nil
 	}
 	if len(subnet.V4FreeIPList) == 0 {
 		if len(subnet.V4ReleasedIPList) != 0 {
@@ -246,15 +240,15 @@ func (subnet *Subnet) getV4RandomAddress(podName string) (IP, IP, string, error)
 	} else {
 		subnet.V4FreeIPList = subnet.V4FreeIPList[1:]
 	}
-	subnet.V4PodToIP[podName] = ip
-	subnet.V4IPToPod[ip] = podName
+	subnet.V4ObjToIP[podName] = ip
+	subnet.V4IPToObj[ip] = podName
 
 	return ip, "", subnet.GetRandomMac(podName), nil
 }
 
 func (subnet *Subnet) getV6RandomAddress(podName string) (IP, IP, string, error) {
-	if ip, ok := subnet.V6PodToIP[podName]; ok {
-		return "", ip, subnet.PodToMac[podName], nil
+	if ip, ok := subnet.V6ObjToIP[podName]; ok {
+		return "", ip, subnet.ObjToMac[podName], nil
 	}
 	if len(subnet.V6FreeIPList) == 0 {
 		if len(subnet.V6ReleasedIPList) != 0 {
@@ -273,8 +267,8 @@ func (subnet *Subnet) getV6RandomAddress(podName string) (IP, IP, string, error)
 	} else {
 		subnet.V6FreeIPList = subnet.V6FreeIPList[1:]
 	}
-	subnet.V6PodToIP[podName] = ip
-	subnet.V6IPToPod[ip] = podName
+	subnet.V6ObjToIP[podName] = ip
+	subnet.V6IPToObj[ip] = podName
 
 	return "", ip, subnet.GetRandomMac(podName), nil
 }
@@ -296,7 +290,7 @@ func (subnet *Subnet) GetStaticAddress(podName string, ip IP, mac string, force 
 	}
 
 	if mac == "" {
-		if m, ok := subnet.PodToMac[podName]; ok {
+		if m, ok := subnet.ObjToMac[podName]; ok {
 			mac = m
 		} else {
 			mac = subnet.GetRandomMac(podName)
@@ -308,7 +302,7 @@ func (subnet *Subnet) GetStaticAddress(podName string, ip IP, mac string, force 
 	}
 
 	if v4 {
-		if existPod, ok := subnet.V4IPToPod[ip]; ok {
+		if existPod, ok := subnet.V4IPToObj[ip]; ok {
 			if existPod != podName {
 				return ip, mac, ConflictError
 			}
@@ -318,26 +312,26 @@ func (subnet *Subnet) GetStaticAddress(podName string, ip IP, mac string, force 
 		}
 
 		if subnet.V4ReservedIPList.Contains(ip) {
-			subnet.V4PodToIP[podName] = ip
-			subnet.V4IPToPod[ip] = podName
+			subnet.V4ObjToIP[podName] = ip
+			subnet.V4IPToObj[ip] = podName
 			return ip, mac, nil
 		}
 
 		if split, newFreeList := splitIPRangeList(subnet.V4FreeIPList, ip); split {
 			subnet.V4FreeIPList = newFreeList
-			subnet.V4PodToIP[podName] = ip
-			subnet.V4IPToPod[ip] = podName
+			subnet.V4ObjToIP[podName] = ip
+			subnet.V4IPToObj[ip] = podName
 			return ip, mac, nil
 		} else {
 			if split, newReleasedList := splitIPRangeList(subnet.V4ReleasedIPList, ip); split {
 				subnet.V4ReleasedIPList = newReleasedList
-				subnet.V4PodToIP[podName] = ip
-				subnet.V4IPToPod[ip] = podName
+				subnet.V4ObjToIP[podName] = ip
+				subnet.V4IPToObj[ip] = podName
 				return ip, mac, nil
 			}
 		}
 	} else if v6 {
-		if existPod, ok := subnet.V6IPToPod[ip]; ok {
+		if existPod, ok := subnet.V6IPToObj[ip]; ok {
 			if existPod != podName {
 				return ip, mac, ConflictError
 			}
@@ -347,21 +341,21 @@ func (subnet *Subnet) GetStaticAddress(podName string, ip IP, mac string, force 
 		}
 
 		if subnet.V6ReservedIPList.Contains(ip) {
-			subnet.V6PodToIP[podName] = ip
-			subnet.V6IPToPod[ip] = podName
+			subnet.V6ObjToIP[podName] = ip
+			subnet.V6IPToObj[ip] = podName
 			return ip, mac, nil
 		}
 
 		if split, newFreeList := splitIPRangeList(subnet.V6FreeIPList, ip); split {
 			subnet.V6FreeIPList = newFreeList
-			subnet.V6PodToIP[podName] = ip
-			subnet.V6IPToPod[ip] = podName
+			subnet.V6ObjToIP[podName] = ip
+			subnet.V6IPToObj[ip] = podName
 			return ip, mac, nil
 		} else {
 			if split, newReleasedList := splitIPRangeList(subnet.V6ReleasedIPList, ip); split {
 				subnet.V6ReleasedIPList = newReleasedList
-				subnet.V6PodToIP[podName] = ip
-				subnet.V6IPToPod[ip] = podName
+				subnet.V6ObjToIP[podName] = ip
+				subnet.V6IPToObj[ip] = podName
 				return ip, mac, nil
 			}
 		}
@@ -369,6 +363,7 @@ func (subnet *Subnet) GetStaticAddress(podName string, ip IP, mac string, force 
 	return ip, mac, NoAvailableError
 }
 
+/*
 func (subnet *Subnet) GetAddressForStaticPort(key string, ip IP, mac string) (IP, string, error) {
 	subnet.mutex.Lock()
 	defer subnet.mutex.Unlock()
@@ -500,18 +495,18 @@ func (subnet *Subnet) ReleaseStaticPortAddress(portName string) {
 		}
 	}
 }
-
+*/
 func (subnet *Subnet) ReleaseAddress(podName string) {
 	subnet.mutex.Lock()
 	defer subnet.mutex.Unlock()
 	ip, mac := IP(""), ""
 	var ok, changed bool
-	if ip, ok = subnet.V4PodToIP[podName]; ok {
-		delete(subnet.V4PodToIP, podName)
-		delete(subnet.V4IPToPod, ip)
-		if mac, ok = subnet.PodToMac[podName]; ok {
-			delete(subnet.PodToMac, podName)
-			delete(subnet.MacToPod, mac)
+	if ip, ok = subnet.V4ObjToIP[podName]; ok {
+		delete(subnet.V4ObjToIP, podName)
+		delete(subnet.V4IPToObj, ip)
+		if mac, ok = subnet.ObjToMac[podName]; ok {
+			delete(subnet.ObjToMac, podName)
+			delete(subnet.MacToObj, mac)
 		}
 
 		// When CIDR changed, do not relocate ip to CIDR list
@@ -531,12 +526,12 @@ func (subnet *Subnet) ReleaseAddress(podName string) {
 			klog.Infof("release v4 %s mac %s for %s, add ip to released list", ip, mac, podName)
 		}
 	}
-	if ip, ok = subnet.V6PodToIP[podName]; ok {
-		delete(subnet.V6PodToIP, podName)
-		delete(subnet.V6IPToPod, ip)
-		if mac, ok = subnet.PodToMac[podName]; ok {
-			delete(subnet.PodToMac, podName)
-			delete(subnet.MacToPod, mac)
+	if ip, ok = subnet.V6ObjToIP[podName]; ok {
+		delete(subnet.V6ObjToIP, podName)
+		delete(subnet.V6IPToObj, ip)
+		if mac, ok = subnet.ObjToMac[podName]; ok {
+			delete(subnet.ObjToMac, podName)
+			delete(subnet.MacToObj, mac)
 		}
 		changed = false
 		// When CIDR changed, do not relocate ip to CIDR list
@@ -561,9 +556,9 @@ func (subnet *Subnet) ContainAddress(address IP) bool {
 	subnet.mutex.RLock()
 	defer subnet.mutex.RUnlock()
 
-	if _, ok := subnet.V4IPToPod[address]; ok {
+	if _, ok := subnet.V4IPToObj[address]; ok {
 		return true
-	} else if _, ok := subnet.V6IPToPod[address]; ok {
+	} else if _, ok := subnet.V6IPToObj[address]; ok {
 		return true
 	}
 	return false
@@ -600,22 +595,22 @@ func (subnet *Subnet) GetPodAddress(podName string) (IP, IP, string, string) {
 	defer subnet.mutex.RUnlock()
 
 	if subnet.Protocol == kubeovnv1.ProtocolIPv4 {
-		ip, mac := subnet.V4PodToIP[podName], subnet.PodToMac[podName]
+		ip, mac := subnet.V4ObjToIP[podName], subnet.ObjToMac[podName]
 		return ip, "", mac, kubeovnv1.ProtocolIPv4
 	} else if subnet.Protocol == kubeovnv1.ProtocolIPv6 {
-		ip, mac := subnet.V6PodToIP[podName], subnet.PodToMac[podName]
+		ip, mac := subnet.V6ObjToIP[podName], subnet.ObjToMac[podName]
 		return "", ip, mac, kubeovnv1.ProtocolIPv6
 	} else {
-		v4IP, v6IP, mac := subnet.V4PodToIP[podName], subnet.V6PodToIP[podName], subnet.PodToMac[podName]
+		v4IP, v6IP, mac := subnet.V4ObjToIP[podName], subnet.V6ObjToIP[podName], subnet.ObjToMac[podName]
 		return v4IP, v6IP, mac, kubeovnv1.ProtocolDual
 	}
 }
 
 func (subnet *Subnet) isIPAssignedToPod(ip string) bool {
-	if _, ok := subnet.V4IPToPod[IP(ip)]; ok {
+	if _, ok := subnet.V4IPToObj[IP(ip)]; ok {
 		return true
 	}
-	if _, ok := subnet.V6IPToPod[IP(ip)]; ok {
+	if _, ok := subnet.V6IPToObj[IP(ip)]; ok {
 		return true
 	}
 	return false

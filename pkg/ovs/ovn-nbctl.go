@@ -139,9 +139,10 @@ func (c Client) SetPortExternalIds(port, key, value string) error {
 func (c Client) CreatePort(ls, port, ip, cidr, mac, tag, pod, namespace string, portSecurity bool, securityGroups string) error {
 	var ovnCommand []string
 	if util.CheckProtocol(cidr) == kubeovnv1.ProtocolDual {
-		ips := strings.Split(ip, ",")
+		//ips := strings.Split(ip, ",")
 		ovnCommand = []string{MayExist, "lsp-add", ls, port, "--",
-			"lsp-set-addresses", port, fmt.Sprintf("%s %s %s", mac, ips[0], ips[1])}
+			//"lsp-set-addresses", port, fmt.Sprintf("%s %s %s", mac, ips[0], ips[1])}
+			"lsp-set-addresses", port, mac}
 
 		ipAddr := util.GetIpAddrWithMask(ip, cidr)
 		ipAddrs := strings.Split(ipAddr, ",")
@@ -616,7 +617,7 @@ func (c Client) createRouterPort(ls, lr, ip, mac string) error {
 		klog.Errorf("failed to create switch router port %s %v", lsTolr, err)
 		return err
 	}
-    if len(ip) == 0 {
+	if len(ip) == 0 {
 		klog.Errorf("failed to create switch router port: ip is empty")
 		return err
 	}
