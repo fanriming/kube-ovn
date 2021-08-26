@@ -117,6 +117,12 @@ type Controller struct {
 	syncSgPortsQueue   workqueue.RateLimitingInterface
 	sgKeyMutex         *keymutex.KeyMutex
 
+	staticPortLister           kubeovnlister.StaticPortLister
+	staticPortSynced           cache.InformerSynced
+	addOrUpdateStaticPortQueue workqueue.RateLimitingInterface
+	delStaticPortQueue         workqueue.RateLimitingInterface
+	//syncStaticPortsQueue       workqueue.RateLimitingInterface
+
 	configMapsLister v1.ConfigMapLister
 	configMapsSynced cache.InformerSynced
 

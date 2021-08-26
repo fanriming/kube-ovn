@@ -30,6 +30,10 @@ type ProviderNetworkListerExpansion interface{}
 // SecurityGroupLister.
 type SecurityGroupListerExpansion interface{}
 
+// StaticPortListerExpansion allows custom methods to be added to
+// StaticPortLister.
+type StaticPortListerExpansion interface{}
+
 // SubnetListerExpansion allows custom methods to be added to
 // SubnetLister.
 type SubnetListerExpansion interface{}

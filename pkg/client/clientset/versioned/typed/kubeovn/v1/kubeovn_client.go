@@ -29,6 +29,7 @@ type KubeovnV1Interface interface {
 	IPsGetter
 	ProviderNetworksGetter
 	SecurityGroupsGetter
+	StaticPortsGetter
 	SubnetsGetter
 	VlansGetter
 	VpcsGetter
@@ -50,6 +51,10 @@ func (c *KubeovnV1Client) ProviderNetworks() ProviderNetworkInterface {
 
 func (c *KubeovnV1Client) SecurityGroups() SecurityGroupInterface {
 	return newSecurityGroups(c)
+}
+
+func (c *KubeovnV1Client) StaticPorts() StaticPortInterface {
+	return newStaticPorts(c)
 }
 
 func (c *KubeovnV1Client) Subnets() SubnetInterface {

@@ -40,6 +40,10 @@ func (c *FakeKubeovnV1) SecurityGroups() v1.SecurityGroupInterface {
 	return &FakeSecurityGroups{c}
 }
 
+func (c *FakeKubeovnV1) StaticPorts() v1.StaticPortInterface {
+	return &FakeStaticPorts{c}
+}
+
 func (c *FakeKubeovnV1) Subnets() v1.SubnetInterface {
 	return &FakeSubnets{c}
 }

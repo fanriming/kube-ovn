@@ -488,3 +488,31 @@ type SecurityGroupList struct {
 
 	Items []SecurityGroup `json:"items"`
 }
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +genclient:nonNamespaced
+// +resourceName=security-groups
+
+type StaticPort struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec StaticPortSpec `json:"spec"`
+}
+
+type StaticPortSpec struct {
+	Subnet string `json:"subnet,omitempty"`
+	Mac    string `json:"mac,omitempty"`
+	V4IP   string `json:"v4IP,omitempty"`
+	V6IP   string `json:"v6IP,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type StaticPortList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []StaticPort `json:"items"`
+}

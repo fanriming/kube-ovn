@@ -30,6 +30,8 @@ type Interface interface {
 	ProviderNetworks() ProviderNetworkInformer
 	// SecurityGroups returns a SecurityGroupInformer.
 	SecurityGroups() SecurityGroupInformer
+	// StaticPorts returns a StaticPortInformer.
+	StaticPorts() StaticPortInformer
 	// Subnets returns a SubnetInformer.
 	Subnets() SubnetInformer
 	// Vlans returns a VlanInformer.
@@ -64,6 +66,11 @@ func (v *version) ProviderNetworks() ProviderNetworkInformer {
 // SecurityGroups returns a SecurityGroupInformer.
 func (v *version) SecurityGroups() SecurityGroupInformer {
 	return &securityGroupInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// StaticPorts returns a StaticPortInformer.
+func (v *version) StaticPorts() StaticPortInformer {
+	return &staticPortInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // Subnets returns a SubnetInformer.

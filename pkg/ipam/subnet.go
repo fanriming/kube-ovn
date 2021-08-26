@@ -20,14 +20,20 @@ type Subnet struct {
 	V4ReservedIPList IPRangeList
 	V4PodToIP        map[string]IP
 	V4IPToPod        map[IP]string
+	V4StaticPortToIP map[string]IP
+	V4IPToStaticPort map[IP]string
 	V6CIDR           *net.IPNet
 	V6FreeIPList     IPRangeList
 	V6ReleasedIPList IPRangeList
 	V6ReservedIPList IPRangeList
 	V6PodToIP        map[string]IP
 	V6IPToPod        map[IP]string
+	V6StaticPortToIP map[string]IP
+	V6IPToStaticPort map[IP]string
 	PodToMac         map[string]string
 	MacToPod         map[string]string
+	StaticPortToMac  map[string]string
+	MacToStaticPort  map[string]string
 }
 
 func NewSubnet(name, cidrStr string, excludeIps []string) (*Subnet, error) {
@@ -136,6 +142,15 @@ func (subnet *Subnet) GetStaticMac(podName, mac string) error {
 	}
 	subnet.MacToPod[mac] = podName
 	subnet.PodToMac[podName] = mac
+	return nil
+}
+
+func (subnet *Subnet) GetMacForStaticPort(staticPortName, mac string) error {
+	if p, ok := subnet.MacToStaticPort[mac]; ok && p != staticPortName {
+		return ConflictError
+	}
+	subnet.MacToStaticPort[mac] = staticPortName
+	subnet.StaticPortToMac[staticPortName] = mac
 	return nil
 }
 
@@ -352,6 +367,138 @@ func (subnet *Subnet) GetStaticAddress(podName string, ip IP, mac string, force 
 		}
 	}
 	return ip, mac, NoAvailableError
+}
+
+func (subnet *Subnet) GetAddressForStaticPort(key string, ip IP, mac string) (IP, string, error) {
+	subnet.mutex.Lock()
+	defer subnet.mutex.Unlock()
+	var v4, v6 bool
+	if net.ParseIP(string(ip)).To4() != nil {
+		v4 = true
+	} else {
+		v6 = true
+	}
+	if v4 && !subnet.V4CIDR.Contains(net.ParseIP(string(ip))) {
+		return ip, mac, OutOfRangeError
+	}
+	if v6 && !subnet.V6CIDR.Contains(net.ParseIP(string(ip))) {
+		return ip, mac, OutOfRangeError
+	}
+
+	if err := subnet.GetMacForStaticPort(key, mac); err != nil {
+		return ip, mac, err
+	}
+
+	if v4 {
+		if existStaticPort, ok := subnet.V4IPToStaticPort[ip]; ok {
+			if existStaticPort != key {
+				return ip, mac, ConflictError
+			}
+		}
+
+		if subnet.V4ReservedIPList.Contains(ip) {
+			subnet.V4StaticPortToIP[key] = ip
+			subnet.V4IPToStaticPort[ip] = key
+			return ip, mac, nil
+		}
+
+		if split, newFreeList := splitIPRangeList(subnet.V4FreeIPList, ip); split {
+			subnet.V4FreeIPList = newFreeList
+			subnet.V4StaticPortToIP[key] = ip
+			subnet.V4IPToStaticPort[ip] = key
+			return ip, mac, nil
+		} else {
+			if split, newReleasedList := splitIPRangeList(subnet.V4ReleasedIPList, ip); split {
+				subnet.V4ReleasedIPList = newReleasedList
+				subnet.V4StaticPortToIP[key] = ip
+				subnet.V4IPToStaticPort[ip] = key
+				return ip, mac, nil
+			}
+		}
+	} else if v6 {
+		if existStaticPort, ok := subnet.V6IPToStaticPort[ip]; ok {
+			if existStaticPort != key {
+				return ip, mac, ConflictError
+			}
+		}
+
+		if subnet.V6ReservedIPList.Contains(ip) {
+			subnet.V6StaticPortToIP[key] = ip
+			subnet.V6IPToStaticPort[ip] = key
+			return ip, mac, nil
+		}
+
+		if split, newFreeList := splitIPRangeList(subnet.V6FreeIPList, ip); split {
+			subnet.V6FreeIPList = newFreeList
+			subnet.V6StaticPortToIP[key] = ip
+			subnet.V6IPToStaticPort[ip] = key
+			return ip, mac, nil
+		} else {
+			if split, newReleasedList := splitIPRangeList(subnet.V6ReleasedIPList, ip); split {
+				subnet.V6ReleasedIPList = newReleasedList
+				subnet.V6StaticPortToIP[key] = ip
+				subnet.V6IPToStaticPort[ip] = key
+				return ip, mac, nil
+			}
+		}
+	}
+	return ip, mac, NoAvailableError
+}
+
+func (subnet *Subnet) ReleaseStaticPortAddress(portName string) {
+	subnet.mutex.Lock()
+	defer subnet.mutex.Unlock()
+	ip, mac := IP(""), ""
+	var ok, changed bool
+	if ip, ok = subnet.V4StaticPortToIP[portName]; ok {
+		delete(subnet.V4StaticPortToIP, portName)
+		delete(subnet.V4IPToStaticPort, ip)
+		if mac, ok = subnet.StaticPortToMac[portName]; ok {
+			delete(subnet.StaticPortToMac, portName)
+			delete(subnet.MacToStaticPort, mac)
+		}
+
+		// When CIDR changed, do not relocate ip to CIDR list
+		if !subnet.V4CIDR.Contains(net.ParseIP(string(ip))) {
+			// Continue to release IPv6 address
+			klog.Infof("release v4 %s mac %s for %s, ignore ip", ip, mac, portName)
+			changed = true
+		}
+
+		if subnet.V4ReservedIPList.Contains(ip) {
+			klog.Infof("release v4 %s mac %s for %s, ip is in reserved list", ip, mac, portName)
+			changed = true
+		}
+
+		if merged, newReleasedList := mergeIPRangeList(subnet.V4ReleasedIPList, ip); !changed && merged {
+			subnet.V4ReleasedIPList = newReleasedList
+			klog.Infof("release v4 %s mac %s for %s, add ip to released list", ip, mac, portName)
+		}
+	}
+	if ip, ok = subnet.V6StaticPortToIP[portName]; ok {
+		delete(subnet.V6StaticPortToIP, portName)
+		delete(subnet.V6IPToStaticPort, ip)
+		if mac, ok = subnet.StaticPortToMac[portName]; ok {
+			delete(subnet.StaticPortToMac, portName)
+			delete(subnet.MacToStaticPort, mac)
+		}
+		changed = false
+		// When CIDR changed, do not relocate ip to CIDR list
+		if !subnet.V6CIDR.Contains(net.ParseIP(string(ip))) {
+			klog.Infof("release v6 %s mac %s for %s, ignore ip", ip, mac, portName)
+			changed = true
+		}
+
+		if subnet.V6ReservedIPList.Contains(ip) {
+			klog.Infof("release v6 %s mac %s for %s, ip is in reserved list", ip, mac, portName)
+			changed = true
+		}
+
+		if merged, newReleasedList := mergeIPRangeList(subnet.V6ReleasedIPList, ip); !changed && merged {
+			subnet.V6ReleasedIPList = newReleasedList
+			klog.Infof("release v6 %s mac %s for %s, add ip to released list", ip, mac, portName)
+		}
+	}
 }
 
 func (subnet *Subnet) ReleaseAddress(podName string) {
