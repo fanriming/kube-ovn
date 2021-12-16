@@ -20,13 +20,16 @@ RUN cd /usr/src/ && \
     rm -rf .git && \
     DATAPATH_CONFIGURE_OPTS='--prefix=/usr --enable-shared' DEB_BUILD_OPTIONS='parallel=8 nocheck' fakeroot debian/rules binary
 
-RUN cd /usr/src/ && git clone -b branch-20.06 --depth=1 https://github.com/ovn-org/ovn.git && \
-    cd ovn && \
-    curl https://github.com/kubeovn/ovn/commit/d8253981485e499979cc47c9453b6be8eebe5f0e.patch | git apply --exclude debian/changelog && \
-    curl https://github.com/kubeovn/ovn/commit/f2db72af17f8ad1ea721b1d02e005ed84620fde2.patch | git apply && \
-    curl https://github.com/fanriming/ovn/commit/2d39e89bdec4a138229e83ee41688e02dbea7829.patch | git apply && \
-    curl https://github.com/kubeovn/ovn/commit/afb8d70fd2488631fdd71af26c6fedf78ef9309a.patch | git apply && \
-    curl https://github.com/kubeovn/ovn/commit/402049e21ce5fb2d0ea23c04843f49a4ab65f027.patch | git apply && \
+#RUN cd /usr/src/ && git clone -b branch-20.06 --depth=1 https://github.com/ovn-org/ovn.git && \
+#    cd ovn && \
+#    curl https://github.com/kubeovn/ovn/commit/d8253981485e499979cc47c9453b6be8eebe5f0e.patch | git apply --exclude debian/changelog && \
+#    curl https://github.com/kubeovn/ovn/commit/f2db72af17f8ad1ea721b1d02e005ed84620fde2.patch | git apply && \
+#    curl https://github.com/fanriming/ovn/commit/2d39e89bdec4a138229e83ee41688e02dbea7829.patch | git apply && \
+#    curl https://github.com/kubeovn/ovn/commit/afb8d70fd2488631fdd71af26c6fedf78ef9309a.patch | git apply && \
+#    curl https://github.com/kubeovn/ovn/commit/402049e21ce5fb2d0ea23c04843f49a4ab65f027.patch | git apply && \
+#    sed -i 's/OVN/ovn/g' debian/changelog && \
+
+RUN cd /usr/src/ && git clone -b branch-20.06-lr --depth=1 https://github.com/fanriming/ovn.git && \
     sed -i 's/OVN/ovn/g' debian/changelog && \
     rm -rf .git && \
     ./boot.sh && \
